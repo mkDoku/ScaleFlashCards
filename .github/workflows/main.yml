@@ -1,0 +1,32 @@
+name: Build and deploy flash cards
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-deploy:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - name: Set up elm
+      uses: jorelali/setup-elm@v4
+      with:
+        elm-version: 0.19.1
+
+    - name: Compile to index.html
+      run: elm make src/Main.elm
+
+    - name: Deploy
+      uses: JamesIves/github-pages-deploy-action@v4
+      with:
+        folder: .
