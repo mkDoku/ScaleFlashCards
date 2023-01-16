@@ -1,0 +1,1 @@
+lilypond -dcrop -fsvg c_major_seven.ly
