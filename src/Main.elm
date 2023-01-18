@@ -15,9 +15,21 @@ import Random exposing (..)
 type Msg
     = Show
     | Next
+    | MajorChecked Bool
+    | MinorChecked Bool
     | RandomGen
     | NewChord Int
     | NoOp
+
+
+
+---------------------------------------------------------------------------------
+
+
+type alias CheckedInfo =
+    { majorChecked : Bool
+    , minorChecked : Bool
+    }
 
 
 
@@ -29,6 +41,7 @@ type alias Model =
     , chordNotes : String
     , isNameVisible : Bool
     , buttonText : String
+    , checkedInfo : CheckedInfo
     }
 
 
@@ -52,13 +65,18 @@ main =
 
 init : () -> ( Model, Cmd Msg )
 init () =
+    let
+        defaultCheckedInfo =
+            CheckedInfo True True
+    in
     ( { chordName = "C Major 7th"
       , chordNotes = "C E G B"
       , isNameVisible = False
       , buttonText = "Show Answer"
+      , checkedInfo = defaultCheckedInfo
       }
     , -- override default values
-      generateChordName
+      generateChordName defaultCheckedInfo
     )
 
 
@@ -66,19 +84,25 @@ init () =
 ---------------------------------------------------------------------------------
 
 
-generateChordName : Cmd Msg
-generateChordName =
+generateChordName : CheckedInfo -> Cmd Msg
+generateChordName checkedInfo =
     Random.generate NewChord
         (Random.int 1
             (Dict.size
-                allChords
+                (allChords
+                    checkedInfo
+                )
             )
         )
 
 
-decide : Int -> String
-decide id =
-    A.get (id - 1) majorChordsNameArray |> Maybe.withDefault "Name not found"
+
+---------------------------------------------------------------------------------
+
+
+decide : CheckedInfo -> Int -> String
+decide checkedInfo id =
+    A.get (id - 1) (allChordsNameArray checkedInfo) |> Maybe.withDefault "Name not found"
 
 
 
@@ -93,11 +117,41 @@ update message model =
 
         RandomGen ->
             ( model
-            , generateChordName
+            , generateChordName model.checkedInfo
             )
 
         NewChord chordID ->
-            ( { model | chordName = decide chordID, chordNotes = "test" }, Cmd.none )
+            ( { model | chordName = decide model.checkedInfo chordID, chordNotes = "test" }, Cmd.none )
+
+        MajorChecked isChecked ->
+            if not model.checkedInfo.minorChecked && model.checkedInfo.majorChecked then
+                ( model, Cmd.none )
+
+            else
+                ( { model
+                    | checkedInfo =
+                        CheckedInfo
+                            isChecked
+                            model.checkedInfo.minorChecked
+                    , isNameVisible = False
+                  }
+                , Cmd.none
+                )
+
+        MinorChecked isChecked ->
+            if not model.checkedInfo.majorChecked && model.checkedInfo.minorChecked then
+                ( model, Cmd.none )
+
+            else
+                ( { model
+                    | checkedInfo =
+                        CheckedInfo
+                            model.checkedInfo.majorChecked
+                            isChecked
+                    , isNameVisible = False
+                  }
+                , Cmd.none
+                )
 
         Show ->
             ( { model | isNameVisible = True, buttonText = "Show Next" }, Cmd.none )
@@ -121,6 +175,10 @@ subscriptions model =
     Sub.none
 
 
+
+---------------------------------------------------------------------------------
+
+
 view : Model -> Browser.Document Msg
 view model =
     { title = "What notes make up the chord?"
@@ -137,7 +195,7 @@ resultElement model =
     if model.isNameVisible then
         el
             [ width fill, centerX ]
-            (text (getChordNotes model.chordName))
+            (text (getChordNotes model))
 
     else
         el [ width fill, centerX ] (text "")
@@ -151,6 +209,32 @@ inputElement model =
     el
         [ width fill, centerX ]
         (text model.chordName)
+
+
+
+---------------------------------------------------------------------------------
+
+
+checkBoxMajor checkedInfo =
+    Input.checkbox [ width fill, centerX ]
+        { onChange = MajorChecked
+        , icon = Input.defaultCheckbox
+        , checked = checkedInfo.majorChecked
+        , label = Input.labelRight [] (text "Major chords")
+        }
+
+
+
+---------------------------------------------------------------------------------
+
+
+checkBoxMinor checkedInfo =
+    Input.checkbox [ width fill, centerX ]
+        { onChange = MinorChecked
+        , icon = Input.defaultCheckbox
+        , checked = checkedInfo.minorChecked
+        , label = Input.labelRight [] (text "Minor chords")
+        }
 
 
 
@@ -176,31 +260,56 @@ button model =
 
 allElements model =
     let
-        finalElement =
-            column [ centerX, spacing 30 ]
-                [ inputElement model
+        firstColumn =
+            column
+                [ spacing 30 ]
+                [ Element.el [] none
+                , inputElement model
                 , resultElement model
                 , button model
                 ]
+
+        secondColumn =
+            column
+                [ spacing 30 ]
+                [ Element.el [] none
+                , Element.el [] (checkBoxMajor model.checkedInfo)
+                , Element.el [] (checkBoxMinor model.checkedInfo)
+                ]
+
+        firstRow =
+            row
+                [ centerX, spacing 30 ]
+                [ firstColumn, secondColumn ]
+
+        finalElement =
+            layout [ width fill, height fill ] <| firstRow
     in
-    layout [ width fill, height fill ] <| finalElement
+    layout [ width fill, height fill ] <| Element.html finalElement
 
 
 
 ---------------------------------------------------------------------------------
 
 
-getChordNotes : String -> String
-getChordNotes chordName =
-    allChords |> Dict.get chordName |> Maybe.withDefault "Chord not found"
+getChordNotes : Model -> String
+getChordNotes model =
+    allChords model.checkedInfo |> Dict.get model.chordName |> Maybe.withDefault "Chord not found"
 
 
 
 ---------------------------------------------------------------------------------
 
 
-allChords =
-    Dict.union majorChords minorChords
+allChords checkedInfo =
+    if checkedInfo.majorChecked && checkedInfo.minorChecked then
+        Dict.union majorChords minorChords
+
+    else if checkedInfo.majorChecked then
+        majorChords
+
+    else
+        minorChords
 
 
 
@@ -251,5 +360,5 @@ minorChords =
 ---------------------------------------------------------------------------------
 
 
-majorChordsNameArray =
-    A.fromList (Dict.keys allChords)
+allChordsNameArray checkedInfo =
+    A.fromList (Dict.keys (allChords checkedInfo))
