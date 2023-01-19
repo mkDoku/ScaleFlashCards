@@ -4,3 +4,5 @@ elm-stuff
 repl-temp-*
 # custom ignores
 resources/c_major_seven.png
+# index.html -> is gernerated by github actions
+index.html
