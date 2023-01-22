@@ -342,8 +342,8 @@ minorChords : Dict.Dict String String
 minorChords =
     Dict.fromList
         [ ( "A Minor 7th", "A C E G#" )
-        , ( "A# Minor 7th", "A# C F A" )
-        , ( "B Minor 7th", "B  D F# A#" )
+        , ( "A# Minor 7th", "A# C# F A" )
+        , ( "B Minor 7th", "B D F# A#" )
         , ( "C Minor 7th", "C D# G B" )
         , ( "C# Minor 7th", "C# E G# C" )
         , ( "D Minor 7th", "D F A C#" )
